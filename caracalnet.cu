@@ -133,32 +133,30 @@ void cn_inference(cn_network* network, float* input, float* output, cn_location 
 	}
 }
 
-void cn_backprop(cn_network* network, float* input, float* target, cn_location data_location) {
-	// CPU backend:
+static void cn_host_backprop(cn_network* network, float* input, float* target) {
+	// Assume input and target buffers are in host memory
 
-	if (network->location == cn_host) {
-		// Assume input and target buffers are in host memory
-		for (int i = network->num_layers - 1; i >= 0; i--) {
-			cn_layer layer_curr = network->layer[i];
-			cn_layer layer_next = (i < network->num_layers - 1) ? network->layer[i + 1] : network->layer[i];
-			float* tmp_target = (i == network->num_layers - 1) ? target : NULL;
-			cn_host_update_deltas(layer_curr, layer_next, tmp_target);
-		}
-		
-		for (int i = 0; i < network->num_layers; i++) {
-			cn_layer tmp_layer = network->layer[i];
-			float* tmp_input = (i == 0) ? input : network->layer[i-1].output;
-			cn_host_update_weights(tmp_layer, tmp_input, 1.f);
-		}
-
-		return;
+	// Calculate deltas
+	for (int i = network->num_layers - 1; i >= 0; i--) {
+		cn_layer layer_curr = network->layer[i];
+		cn_layer layer_next = (i < network->num_layers - 1) ? network->layer[i + 1] : network->layer[i];
+		float* tmp_target = (i == network->num_layers - 1) ? target : NULL;
+		cn_host_update_deltas(layer_curr, layer_next, tmp_target);
 	}
+	
+	// Update weights
+	for (int i = 0; i < network->num_layers; i++) {
+		cn_layer tmp_layer = network->layer[i];
+		float* tmp_input = (i == 0) ? input : network->layer[i-1].output;
+		cn_host_update_weights(tmp_layer, tmp_input, 1.f);
+	}
+}
 
+static void cn_device_backprop(cn_network* network, float* input, float* target, cn_location data_location) {
 	// Copy target vector into GPU memory if needed
 	float* dev_target = NULL;
 	if (data_location == cn_host) {
-		cudaMalloc((void**)&dev_target, sizeof(float) * network->num_outputs);
-		cudaMemcpy(dev_target, target, sizeof(float) * network->num_outputs, cudaMemcpyHostToDevice);
+		dev_target = (float*) cn_copy(target, sizeof(float) * network->num_outputs, cn_device, cn_host);
 	}
 	else {
 		dev_target = target;
@@ -185,8 +183,7 @@ void cn_backprop(cn_network* network, float* input, float* target, cn_location d
 	// Copy input vector into GPU memory if needed
 	float* dev_input = NULL;
 	if (data_location == cn_host) {
-		cudaMalloc((void**)&dev_input, sizeof(float) * network->num_inputs);
-		cudaMemcpy(dev_input, input, sizeof(float) * network->num_inputs, cudaMemcpyHostToDevice);
+		dev_input = (float*) cn_copy(input, sizeof(float) * network->num_inputs, cn_device, cn_host);
 	}
 	else {
 		dev_input = input;
@@ -209,4 +206,15 @@ void cn_backprop(cn_network* network, float* input, float* target, cn_location d
 		cudaFree(dev_input);
 	}
 
+}
+
+void cn_backprop(cn_network* network, float* input, float* target, cn_location data_location) {
+	switch (network->location) {
+	case cn_host:
+		cn_host_backprop(network, input, target);
+		break;
+	case cn_device:
+		cn_device_backprop(network, input, target, data_location);
+		break;
+	}
 }
