@@ -22,9 +22,9 @@ float cn_sigmoid_prime(float x) {
 
 // Helper functions for forward propagation
 __host__ __device__
-float cn_vector_dot_product(float* a, float* b, unsigned int n) {
+float cn_vector_dot_product(float* a, float* b, uint32_t n) {
 	float sum = 0.f;
-	for (unsigned int i = 0; i < n; i++) {
+	for (uint32_t i = 0; i < n; i++) {
 		sum += a[i] * b[i];
 	}
 	return sum;

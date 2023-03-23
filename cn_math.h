@@ -7,6 +7,8 @@
 #ifndef CARACALNET_MATH_H
 #define CARACALNET_MATH_H
 
+#include <stdint.h>
+
 // Various activation functions and their derivatives
 // TODO: Currently only have sigmoid, need to implement the other ones
 __host__ __device__
@@ -17,6 +19,6 @@ float cn_sigmoid_prime(float x);
 
 // Helper functions for forward propagation
 __host__ __device__
-float cn_vector_dot_product(float* a, float* b, unsigned int n);
+float cn_vector_dot_product(float* a, float* b, uint32_t n);
 
 #endif

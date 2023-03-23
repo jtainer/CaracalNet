@@ -52,7 +52,7 @@ void cn_layer_destroy(cn_layer* layer) {
 cn_network cn_network_create(uint32_t num_inputs, uint32_t num_outputs, uint32_t num_layers, uint32_t layer_width, cn_location location) {
 	cn_network network = { location, NULL, num_layers, num_inputs, num_outputs };
 	network.layer = (cn_layer*) malloc(sizeof(cn_layer) * num_layers);
-	for (unsigned int i = 0; i < num_layers; i++) {
+	for (int32_t i = 0; i < num_layers; i++) {
 		unsigned int tmp_num_inputs = (i==0) ? num_inputs : layer_width;
 		unsigned int tmp_num_nodes = (i==num_layers-1) ? num_outputs : layer_width;
 		network.layer[i] = cn_layer_create(tmp_num_nodes, tmp_num_inputs, location);
@@ -64,14 +64,14 @@ cn_network cn_network_copy(cn_network* origin, cn_location target_location) {
 	cn_network target = *origin;
 	target.location = target_location;
 	target.layer = (cn_layer*) malloc(sizeof(cn_layer) * origin->num_layers);
-	for (unsigned int i = 0; i < origin->num_layers; i++) {
+	for (int32_t i = 0; i < origin->num_layers; i++) {
 		target.layer[i] = cn_layer_copy(&origin->layer[i], target_location);
 	}
 	return target;
 }
 
 void cn_network_destroy(cn_network* network) {
-	for (unsigned int i = 0; i < network->num_layers; i++) {
+	for (int32_t i = 0; i < network->num_layers; i++) {
 		cn_layer_destroy(&network->layer[i]);
 	}
 	network->layer = NULL;
@@ -83,7 +83,7 @@ void cn_network_destroy(cn_network* network) {
 static void cn_host_inference(cn_network* network, float* input, float* output) {
 	// If using CPU backend, we assume the buffers point to host memory system, not VRAM
 	float* tmp_input = input;
-	for (int i = 0; i < network->num_layers; i++) {
+	for (int32_t i = 0; i < network->num_layers; i++) {
 		cn_host_forward_pass(network->layer[i], tmp_input, cn_log);
 		tmp_input = network->layer[i].output;
 	}
@@ -103,10 +103,10 @@ static void cn_device_inference(cn_network* network, float* input, float* output
 
 	// Run forward pass
 	float* tmp_input = dev_input;
-	for (unsigned int i = 0; i < network->num_layers; i++) {
-		unsigned int num_threads = network->layer[i].num_nodes;
-		const unsigned int block_size = 32;
-		unsigned int num_blocks = num_threads / block_size;
+	for (int32_t i = 0; i < network->num_layers; i++) {
+		uint32_t num_threads = network->layer[i].num_nodes;
+		const uint32_t block_size = 32;
+		uint32_t num_blocks = num_threads / block_size;
 		if (num_blocks * block_size < num_threads) num_blocks++;
 		cn_device_forward_pass<<<num_blocks, block_size>>>(network->layer[i], tmp_input, cn_log);
 		tmp_input = network->layer[i].output;
@@ -137,7 +137,7 @@ static void cn_host_backprop(cn_network* network, float* input, float* target) {
 	// Assume input and target buffers are in host memory
 
 	// Calculate deltas
-	for (int i = network->num_layers - 1; i >= 0; i--) {
+	for (int32_t i = network->num_layers - 1; i >= 0; i--) {
 		cn_layer layer_curr = network->layer[i];
 		cn_layer layer_next = (i < network->num_layers - 1) ? network->layer[i + 1] : network->layer[i];
 		float* tmp_target = (i == network->num_layers - 1) ? target : NULL;
@@ -145,7 +145,7 @@ static void cn_host_backprop(cn_network* network, float* input, float* target) {
 	}
 	
 	// Update weights
-	for (int i = 0; i < network->num_layers; i++) {
+	for (int32_t i = 0; i < network->num_layers; i++) {
 		cn_layer tmp_layer = network->layer[i];
 		float* tmp_input = (i == 0) ? input : network->layer[i-1].output;
 		cn_host_update_weights(tmp_layer, tmp_input, 1.f);
@@ -163,14 +163,14 @@ static void cn_device_backprop(cn_network* network, float* input, float* target,
 	}
 
 	// Calculate deltas
-	for (int i = network->num_layers - 1; i >= 0; i--) {
+	for (int32_t i = network->num_layers - 1; i >= 0; i--) {
 		cn_layer layer_curr = network->layer[i];
 		cn_layer layer_next = (i < network->num_layers - 1) ? network->layer[i + 1] : network->layer[i];
 		float* tmp_target = (i == network->num_layers - 1) ? dev_target : NULL;
 		
-		unsigned int num_threads = layer_curr.num_nodes;
-		const unsigned int block_size = 32;
-		unsigned int num_blocks = num_threads / block_size;
+		uint32_t num_threads = layer_curr.num_nodes;
+		const uint32_t block_size = 32;
+		uint32_t num_blocks = num_threads / block_size;
 		if (num_blocks * block_size < num_threads) num_blocks++;
 		cn_device_update_deltas<<<num_blocks, block_size>>>(layer_curr, layer_next, tmp_target);
 	}
@@ -190,13 +190,13 @@ static void cn_device_backprop(cn_network* network, float* input, float* target,
 	}
 
 	// Update weights
-	for (int i = 0; i < network->num_layers; i++) {
+	for (int32_t i = 0; i < network->num_layers; i++) {
 		cn_layer tmp_layer = network->layer[i];
 		float* tmp_input = (i == 0) ? dev_input : network->layer[i - 1].output;
 
-		unsigned int num_threads = tmp_layer.num_nodes;
-		const unsigned int block_size = 32;
-		unsigned int num_blocks = num_threads / block_size;
+		uint32_t num_threads = tmp_layer.num_nodes;
+		const uint32_t block_size = 32;
+		uint32_t num_blocks = num_threads / block_size;
 		if (num_blocks * block_size < num_threads) num_blocks++;
 		cn_device_update_weights<<<num_blocks, block_size>>>(tmp_layer, tmp_input, 1.f);
 	}
