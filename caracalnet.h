@@ -52,6 +52,10 @@ typedef struct cn_network {
 	uint32_t num_outputs;
 } cn_network;
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 // Layer handling operations:
 // These probably shouldn't be exposed since they are mainly intended for internal use.
 // But I will leave them here for now :)
@@ -84,5 +88,10 @@ void cn_inference(cn_network* network, float* input, float* output, cn_location 
 // Updates neural network weights based on the target vector and the results of the
 // previous forward pass.
 void cn_backprop(cn_network* network, float* input, float* target, cn_location data_location);
+
+#if defined(__cplusplus)
+}
+#endif
+
 
 #endif
