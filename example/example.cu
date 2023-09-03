@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include "caracalnet.h"
+#include "../caracalnet.h"
 
 void print_weights(cn_network network) {
 	cn_network net = cn_network_copy(&network, cn_host);
